@@ -5,11 +5,11 @@
 
 import { useEffect, useState } from 'react';
 import { DashboardData } from '@/lib/api/types';
-import WeekProgress from '@/components/WeekProgress';
-import NextStepCard from '@/components/NextStepCard';
-import GamificationPanel from '@/components/GamificationPanel';
-import CoachPanel from '@/components/CoachPanel';
-import DailyTrackerQuickAccess from '@/components/DailyTrackerQuickAccess';
+import WeekProgress from '../../components/WeekProgress';
+import NextStepCard from '../../components/NextStepCard';
+import GamificationPanel from '../../components/GamificationPanel';
+import CoachPanel from '../../components/CoachPanel';
+import DailyTrackerQuickAccess from '../../components/DailyTrackerQuickAccess';
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
