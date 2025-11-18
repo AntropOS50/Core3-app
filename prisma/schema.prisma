@@ -1,0 +1,206 @@
+// Prisma schema pro "Stát se nenahraditelným v době AI - Fáze 1"
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Uživatel
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  name             String
+  roleDescription  String?  @map("role_description")
+  workContext      String?  @map("work_context") @db.Text
+  aiMode           AiMode   @default(NORMAL) @map("ai_mode")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relace
+  courseState      CoursePhase1State?
+  weeklyPlans      WeeklyPlan[]
+  dailyEntries     DailyTrackerEntry[]
+  patterns         ProcrastinationPattern[]
+  operatingSystem  OperatingSystemV1?
+  badges           UserBadge[]
+  streaks          Streak[]
+  coachSessions    CoachSession[]
+
+  @@map("users")
+}
+
+enum AiMode {
+  SILENT
+  NORMAL
+  ACTIVE
+}
+
+// Stav kurzu Fáze 1
+model CoursePhase1State {
+  id          String   @id @default(cuid())
+  userId      String   @unique @map("user_id")
+  currentWeek Int      @default(1) @map("current_week")
+  mainGoal    String?  @map("main_goal") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("course_phase1_states")
+}
+
+// Týdenní plán
+model WeeklyPlan {
+  id              String       @id @default(cuid())
+  userId          String       @map("user_id")
+  weekNumber      Int          @map("week_number")
+  highValueTasks  String[]     @map("high_value_tasks")
+  adminTasks      String[]     @map("admin_tasks")
+  lowValueTasks   String[]     @map("low_value_tasks")
+  focusBlocks     Json[]       @map("focus_blocks") // [{dayOfWeek, startTime, durationMin}]
+  notes           String?      @db.Text
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekNumber])
+  @@map("weekly_plans")
+}
+
+// Denní tracker záznam
+model DailyTrackerEntry {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  date       DateTime @db.Date
+  weekNumber Int      @map("week_number")
+
+  // Týden 1
+  engagedToday     Boolean? @map("engaged_today")
+  dayFeeling       Int?     @map("day_feeling") // 1-5
+  frustrationNote  String?  @map("frustration_note") @db.Text
+
+  // Týden 2
+  focusBlockDone    FocusBlockStatus? @map("focus_block_done")
+  highImpactStep    String?           @map("high_impact_step") @db.Text
+  disruptionReason  String?           @map("disruption_reason") @db.Text
+
+  // Týden 3
+  procrastinationEvent Boolean? @map("procrastination_event")
+  microStepUsed        Boolean? @map("micro_step_used")
+  microStepContext     String?  @map("micro_step_context") @db.Text
+
+  // Týden 4
+  systemAlignment Int?    @map("system_alignment") // 1-5
+  positiveEvent   String? @map("positive_event") @db.Text
+
+  // Obecné rozšíření
+  rawData   Json?    @map("raw_data")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("daily_tracker_entries")
+}
+
+enum FocusBlockStatus {
+  YES
+  NO
+  PARTIAL
+}
+
+// Vzorce prokrastinace
+model ProcrastinationPattern {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  description     String   @db.Text
+  patternType     String   @map("pattern_type")
+  microStep       String   @map("micro_step") @db.Text
+  triggerPhrases  String[] @map("trigger_phrases")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("procrastination_patterns")
+}
+
+// Pracovní operační systém 1.0
+model OperatingSystemV1 {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique @map("user_id")
+  planningRules           String[] @map("planning_rules")
+  antiProcrastinationRules String[] @map("anti_procrastination_rules")
+  visibleChanges          String[] @map("visible_changes")
+  aiSummary               String?  @map("ai_summary") @db.Text
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("operating_systems_v1")
+}
+
+// Definice odznaků
+model Badge {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String   @db.Text
+  icon        String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+// Získané odznaky uživatele
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  badgeCode String   @map("badge_code")
+  earnedAt  DateTime @default(now()) @map("earned_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeCode], references: [code])
+
+  @@unique([userId, badgeCode])
+  @@map("user_badges")
+}
+
+// Streaky (série)
+model Streak {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  metric        String   // "meaningful_step", "micro_step_used", etc.
+  currentStreak Int      @default(0) @map("current_streak")
+  longestStreak Int      @default(0) @map("longest_streak")
+  lastDate      DateTime @db.Date @map("last_date")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, metric])
+  @@map("streaks")
+}
+
+// Konverzace s AI koučem (pro historii a kontext)
+model CoachSession {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  weekNumber      Int      @map("week_number")
+  interactionType String   @map("interaction_type") // onboarding, weekly_planning, procrastination, reflection, ad_hoc
+  messages        Json[]   // [{role: "user"|"assistant", content: string, timestamp: datetime}]
+  summary         String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("coach_sessions")
+}
