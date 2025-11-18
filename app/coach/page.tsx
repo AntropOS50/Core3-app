@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { CoachMessage } from '@/lib/ai-coach/coach';
+import { CoachMessage } from '../../lib/ai-coach/coach';
 
 export default function CoachPage() {
   const searchParams = useSearchParams();
